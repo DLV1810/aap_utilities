@@ -45,14 +45,19 @@
   ansible.builtin.set_fact:
     is_latest_version: "{{ __aap_image_to_download.filename == __aap_setup_down_images[0].filename }}"
 
+- name: Set a fact to indicate if the selected version is the latest, can use in other code to perform other actions.
+  ansible.builtin.set_fact:
+    is_aap_setup_down_latest: "{{ is_latest_version | bool }}"
+
 - name: Notify if the selected version is not the latest
   ansible.builtin.pause:
     prompt: |
-     ########################################################################################
+      ########################################################################################
       The selected version {{ __aap_image_to_download.filename }} is not the latest version
       The latest version is: {{ __aap_setup_down_images[0].filename }}
-     ########################################################################################
-    seconds: 5
+      A fact 'is_aap_setup_down_latest' is set to false.
+      ########################################################################################
+    seconds: 1
   when: not is_latest_version
 
 - name: Downloading the latest installer of type {{ aap_setup_down_type }}
