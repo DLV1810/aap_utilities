@@ -33,8 +33,8 @@
 - name: Filter the desired image based on filename
   ansible.builtin.set_fact:
     __aap_filtered_version_selected: >-
-      {{ __aap_setup_down_images | selectattr('filename', 'search', (aap_setup_down_version | string) + '-' + (aap_setup_down_version_minor | string)) | list }}
-  when: aap_setup_down_version_minor
+      {{ __aap_setup_down_images | selectattr('filename', 'search', (aap_setup_down_version | string) + '-' + (aap_setup_down_version_patch | string)) | list }}
+  when: aap_setup_down_version_patch is defined
 
 - name: Set the image to download, filtered or latest
   ansible.builtin.set_fact:
@@ -49,7 +49,7 @@
   ansible.builtin.pause:
     prompt: |
      ########################################################################################
-      The selected version ({{ __aap_image_to_download.filename }}) is not the latest version
+      The selected version {{ __aap_image_to_download.filename }} is not the latest version
       The latest version is: {{ __aap_setup_down_images[0].filename }}
      ########################################################################################
     seconds: 5
