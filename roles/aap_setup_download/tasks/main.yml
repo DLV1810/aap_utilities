@@ -26,10 +26,39 @@
       'ansible-automation-platform-setup'))) | sort(attribute='datePublished', reverse=True) | selectattr('filename', 'search', (aap_setup_down_type | string) + '-'
       + (aap_setup_down_version | string)) }}"
 
+- name: Display all the filenames available for download
+  ansible.builtin.debug:
+    msg: "{{ __aap_setup_down_images | map(attribute='filename') | list }}"
+
+- name: Filter the desired image based on filename
+  ansible.builtin.set_fact:
+    __aap_filtered_version_selected: >-
+      {{ __aap_setup_down_images | selectattr('filename', 'search', (aap_setup_down_version | string) + '-' + (aap_setup_down_version_minor | string)) | list }}
+  when: aap_setup_down_version_minor
+
+- name: Set the image to download, filtered or latest
+  ansible.builtin.set_fact:
+    __aap_image_to_download: >-
+      {{ (__aap_filtered_version_selected | length > 0) | ternary(__aap_filtered_version_selected[0], __aap_setup_down_images[0]) }}
+
+- name: Check if the selected version is the latest
+  ansible.builtin.set_fact:
+    is_latest_version: "{{ __aap_image_to_download.filename == __aap_setup_down_images[0].filename }}"
+
+- name: Notify if the selected version is not the latest
+  ansible.builtin.pause:
+    prompt: |
+     ########################################################################################
+      The selected version ({{ __aap_image_to_download.filename }}) is not the latest version
+      The latest version is: {{ __aap_setup_down_images[0].filename }}
+     ########################################################################################
+    seconds: 5
+  when: not is_latest_version
+
 - name: Downloading the latest installer of type {{ aap_setup_down_type }}
   ansible.builtin.get_url:
-    url: "{{ __aap_setup_down_images[:3][0].downloadHref }}"
-    dest: "{{ aap_setup_down_dest_dir }}/{{ __aap_setup_down_images[:3][0].filename }}"
+    url: "{{ __aap_image_to_download.downloadHref }}"
+    dest: "{{ aap_setup_down_dest_dir }}/{{ __aap_image_to_download.filename }}"
     mode: "0644"
     headers:
       Authorization: Bearer {{ __aap_setup_down_login.json.access_token }}
