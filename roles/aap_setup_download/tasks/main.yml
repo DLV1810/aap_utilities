@@ -30,24 +30,25 @@
   ansible.builtin.debug:
     msg: "{{ __aap_setup_down_images | map(attribute='filename') | list }}"
 
-# Returns an empty string when false
-- name: Filter the desired image based on filename
+- name: Select the image to download or latest
   ansible.builtin.set_fact:
+    is_aap_setup_down_latest: "{{ (__aap_image_to_download.filename == __aap_setup_down_images[0].filename) | bool }}"
+    __aap_image_to_download: "{{ __aap_image_to_download }}"
+    __aap_filtered_version_selected: "{{ __aap_filtered_version_selected }}"
+  vars:
     __aap_filtered_version_selected: >-
       {{ __aap_setup_down_images | selectattr('filename', 'search', (aap_setup_down_version | string) + '-' + (aap_setup_down_version_patch | string)) | list }}
-
-- name: Set the image to download, filtered or latest
-  ansible.builtin.set_fact:
     __aap_image_to_download: >-
       {{ (__aap_filtered_version_selected | length > 0) | ternary(__aap_filtered_version_selected[0], __aap_setup_down_images[0]) }}
 
-- name: Check if the selected version is the latest
-  ansible.builtin.set_fact:
-    is_latest_version: "{{ __aap_image_to_download.filename == __aap_setup_down_images[0].filename }}"
-
-- name: Set a fact to indicate if the selected version is the latest, can use in other code to perform other actions.
-  ansible.builtin.set_fact:
-    is_aap_setup_down_latest: "{{ is_latest_version | bool }}"
+- name: Assert if a version is selected its avail for download
+  ansible.builtin.assert:
+    that:
+      - __aap_filtered_version_selected | length != 0
+    fail_msg:
+      - "The selected version {{ aap_setup_down_version }}-{{ aap_setup_down_version_patch }} is not available for download. Please check the version and try again."
+      - "Available versions are: {{ __aap_setup_down_images | map(attribute='filename') | list }}"
+  when: aap_setup_down_version_patch  # This is false when its not set.
 
 - name: Notify if the selected version is not the latest
   ansible.builtin.pause:
@@ -58,9 +59,9 @@
       A fact 'is_aap_setup_down_latest' is set to false.
       ########################################################################################
     seconds: 1
-  when: not is_latest_version
+  when: not is_aap_setup_down_latest
 
-- name: Downloading the latest installer of type {{ aap_setup_down_type }}
+- name: Downloading the installer of type {{ aap_setup_down_type }}
   ansible.builtin.get_url:
     url: "{{ __aap_image_to_download.downloadHref }}"
     dest: "{{ aap_setup_down_dest_dir }}/{{ __aap_image_to_download.filename }}"
